@@ -837,11 +837,11 @@
 
   // Agrupamento de 1 nível só (por TR/ativo) usado no Modo Encarregado -- mais simples que a
   // árvore de 3 níveis do Modo Gestão, pra achar a atividade rápido sem abrir várias pastas.
-  function groupedByTrOnlyHtml(effs) {
+  function groupedByTrOnlyHtml(effs, showEncarregado) {
     if (!effs.length) return '<div class="table-caption">Nenhuma atividade encontrada.</div>';
     var porTR = groupBy(effs, function (e) { return e.area; });
     var html = porTR.map(function (trGroup) {
-      var body = '<div class="pgu-group__body">' + trGroup.itens.map(function (e) { return activityCardHtml(e, false); }).join("") + "</div>";
+      var body = '<div class="pgu-group__body">' + trGroup.itens.map(function (e) { return activityCardHtml(e, !!showEncarregado); }).join("") + "</div>";
       if (trGroup.label === SEM_CLASSIFICACAO) return body;
       var key = "tr-enc:" + trGroup.label;
       return '<details class="pgu-group-tr" data-gkey="' + A.esc(key) + '"' + (groupOpenState[key] ? " open" : "") + '><summary>' +
@@ -991,58 +991,62 @@
     return '<div class="chip-grid">' + html + "</div>";
   }
 
-  // Corpo do Modo Gestão: os mesmos filtros/KPIs/árvore de sempre, só com card em vez de linha.
-  function renderModoGestaoBody(effsAll, diaStr, hojeStr) {
-    var vendoTodaPgu = diaStr === TODA_PGU;
-    var vendoHojeReal = diaStr === hojeStr;
+  // Chips "📅 Toda a PGU" + um por dia, e "🕐 Todos os turnos" + um por turno -- filtros do Modo
+  // Gestão, independentes do dia escolhido no banner de cima (que só vale pro Modo Encarregado).
+  var pguGestaoDia = null;
+  var pguGestaoTurno = null;
 
-    var execOptions = A.distinctValues(effsAll.filter(function (e) { return e.executante; }), "executante").map(function (o) { return o.value; });
-    var encarregadoOptions = A.distinctValues(effsAll.filter(function (e) { return e.encarregado; }), "encarregado").map(function (o) { return o.value; });
-    var fiscalObraOptions = A.distinctValues(effsAll.filter(function (e) { return e.fiscalObra; }), "fiscalObra").map(function (o) { return o.value; });
-    var fiscalSegurancaOptions = A.distinctValues(effsAll.filter(function (e) { return e.fiscalSeguranca; }), "fiscalSeguranca").map(function (o) { return o.value; });
+  function gestaoDiaChipsHtml(pguInicio, pguFim, hojeStr) {
+    if (!pguGestaoDia) pguGestaoDia = TODA_PGU;
+    var chips = '<button type="button" class="pgu-gestao-chip' + (pguGestaoDia === TODA_PGU ? " pgu-gestao-chip--sel" : "") + '" data-pick-dia-gestao="' + TODA_PGU + '">📅 Toda a PGU</button>';
+    if (pguInicio && pguFim) {
+      var cur = new Date(pguInicio + "T00:00:00");
+      var end = new Date(pguFim + "T00:00:00");
+      while (cur <= end) {
+        var d = toISODate(cur);
+        var isHoje = d === hojeStr;
+        var isSel = d === pguGestaoDia;
+        chips += '<button type="button" class="pgu-gestao-chip' + (isHoje ? " pgu-gestao-chip--hoje" : "") + (isSel ? " pgu-gestao-chip--sel" : "") + '" data-pick-dia-gestao="' + d + '">' +
+          d.slice(8, 10) + "/" + d.slice(5, 7) + (isHoje ? '<span class="pgu-gestao-chip__pin">📍</span>' : "") +
+        "</button>";
+        cur.setDate(cur.getDate() + 1);
+      }
+    }
+    return '<div class="pgu-gestao-daybar">' + chips + "</div>";
+  }
 
-    var algumFiltroAtivo = hojeFilters.turno.length || hojeFilters.executante.length || hojeFilters.encarregado.length || hojeFilters.fiscalObra.length || hojeFilters.fiscalSeguranca.length;
-    var filtrosHtml =
-      '<div style="display:flex;flex-wrap:wrap;gap:20px;margin-bottom:18px;">' +
-        '<div><label class="filter-toolbar__label">Encarregado</label>' + A.multiSelect("msHojeEncarregado", encarregadoOptions, hojeFilters.encarregado, "Todos") + "</div>" +
-        '<div><label class="filter-toolbar__label">Fiscal de Campo</label>' + A.multiSelect("msHojeFiscalObra", fiscalObraOptions, hojeFilters.fiscalObra, "Todos") + "</div>" +
-        '<div><label class="filter-toolbar__label">Fiscal de Segurança</label>' + A.multiSelect("msHojeFiscalSeguranca", fiscalSegurancaOptions, hojeFilters.fiscalSeguranca, "Todos") + "</div>" +
-      "</div>" +
-      '<div style="display:flex;flex-wrap:wrap;gap:20px;">' +
-        '<div><label class="filter-toolbar__label">Empresa</label>' + A.multiSelect("msHojeEmpresa", execOptions, hojeFilters.executante, "Todas") + "</div>" +
-        '<div><label class="filter-toolbar__label">Turno</label>' + A.multiSelect("msHojeTurno", TURNO_OPTIONS, hojeFilters.turno, "Todos") + "</div>" +
-      "</div>" +
-      (algumFiltroAtivo ? '<button type="button" class="filter-toolbar__clear" id="pguHojeClearFiltros" style="margin-top:14px;">✕ Limpar filtros</button>' : "");
+  function gestaoTurnoChipsHtml() {
+    if (!pguGestaoTurno) pguGestaoTurno = TODA_PGU;
+    var chips = '<button type="button" class="pgu-gestao-chip' + (pguGestaoTurno === TODA_PGU ? " pgu-gestao-chip--sel" : "") + '" data-pick-turno-gestao="' + TODA_PGU + '">🕐 Todos os turnos</button>';
+    chips += TURNO_OPTIONS.map(function (t) {
+      var isSel = t === pguGestaoTurno;
+      return '<button type="button" class="pgu-gestao-chip' + (isSel ? " pgu-gestao-chip--sel" : "") + '" data-pick-turno-gestao="' + A.esc(t) + '">' + A.esc(t) + "</button>";
+    }).join("");
+    return '<div class="pgu-gestao-daybar">' + chips + "</div>";
+  }
 
-    var effs = applyHojeFilters(effsAll);
-    var doDia = vendoTodaPgu ? effs : effs.filter(function (e) { return e.inicio && e.termino && e.inicio <= diaStr && e.termino >= diaStr; });
-    var atrasadas = effs.filter(function (e) { return e.status === "Atrasada"; });
-    var pctGeral = effs.length ? Math.round(effs.reduce(function (s, e) { return s + (e.percent || 0); }, 0) / effs.length) : 0;
-    var tituloDia = vendoTodaPgu ? "Todas as atividades da PGU" : (vendoHojeReal ? "O que fazer hoje" : "Atividades de " + A.fmtDate(diaStr));
+  // Corpo do Modo Gestão: painel geral (dia + turno em chips) e as atividades agrupadas só por
+  // TR/ativo em cards -- igual ao Modo Encarregado, só que sem travar num turno só.
+  function renderModoGestaoBody(effsAll, hojeStr, pguInicio, pguFim) {
+    if (!pguGestaoDia) pguGestaoDia = TODA_PGU;
+    if (!pguGestaoTurno) pguGestaoTurno = TODA_PGU;
 
-    return '<div class="panel" style="margin-bottom:16px;" id="pguHojeFilterPanel">' +
-        '<h3 class="panel__title" style="margin-bottom:2px;">Filtros</h3>' +
-        '<p class="panel__subtitle" style="margin-bottom:8px;">Turno/encarregado vêm do preenchimento em campo</p>' +
-        filtrosHtml +
+    var filtradas = effsAll.filter(function (e) {
+      var passaDia = pguGestaoDia === TODA_PGU || (e.inicio && e.termino && e.inicio <= pguGestaoDia && e.termino >= pguGestaoDia);
+      var passaTurno = pguGestaoTurno === TODA_PGU || e.turno === pguGestaoTurno;
+      return passaDia && passaTurno;
+    });
+    var diaFmt = pguGestaoDia === TODA_PGU ? "todos os dias" : (pguGestaoDia.slice(8, 10) + "/" + pguGestaoDia.slice(5, 7));
+    var turnoFmt = pguGestaoTurno === TODA_PGU ? "todos os turnos" : "turno " + pguGestaoTurno;
+
+    return '<div class="pgu-turno-header" style="background:linear-gradient(135deg, var(--vale-blue), #1f6fa0);">' +
+        '<div><div class="pgu-turno-header__title">🖥️ Visão geral — Modo Gestão</div>' +
+        '<div class="pgu-turno-header__sub">Vendo ' + A.esc(diaFmt) + ' · ' + A.esc(turnoFmt) + ' · ' + A.fmtNum(filtradas.length) + ' de ' + A.fmtNum(effsAll.length) + ' atividades</div></div>' +
       "</div>" +
-      '<div class="kpi-grid">' +
-        kpiCard("📋", vendoTodaPgu ? "Atividades exibidas" : "Atividades no dia", A.fmtNum(doDia.length)) +
-        kpiCard("⏱️", "Atrasadas (geral)", A.fmtNum(atrasadas.length), atrasadas.length ? "bad" : "") +
-        kpiCard("📊", "% médio geral", pctGeral + "%", "blue") +
-        kpiCard("🏁", "Total de atividades", A.fmtNum(effs.length)) +
-      "</div>" +
-      '<div class="panel">' +
-        '<div class="eap-toolbar-row">' +
-          '<h3 class="panel__title" style="margin:0;flex:1;">' + A.esc(tituloDia) + "</h3>" +
-          '<button type="button" class="btn-neutral" id="pguGroupExpandAll">⊞ Expandir tudo</button>' +
-          '<button type="button" class="btn-neutral" id="pguGroupCollapseAll">⊟ Recolher tudo</button>' +
-        "</div>" +
-        '<p class="panel__subtitle">Agrupado por TR/ativo → componente → disciplina. Clique no nome da atividade para observações, impedimento etc.</p>' +
-        groupedActivityListHtml(doDia) +
-      "</div>" +
-      '<div class="panel"><h3 class="panel__title">Atrasadas — ação necessária</h3>' +
-        (atrasadas.length ? atrasadas.slice(0, 30).map(function (e) { return activityCardHtml(e, true); }).join("") : '<div class="table-caption">Nenhuma atividade atrasada. 🎉</div>') +
-      "</div>";
+      gestaoDiaChipsHtml(pguInicio, pguFim, hojeStr) +
+      gestaoTurnoChipsHtml() +
+      (filtradas.length ? groupedByTrOnlyHtml(filtradas, true) :
+        '<div class="panel"><div class="table-caption">Nenhuma atividade com esses filtros.</div></div>');
   }
 
   // Corpo do Modo Encarregado: card por atividade do turno escolhido, agrupado só por TR/ativo.
@@ -1102,7 +1106,7 @@
 
     var bodyHtml;
     if (pguModo === "gestao") {
-      bodyHtml = renderModoGestaoBody(effsAll, diaStr, hojeStr);
+      bodyHtml = renderModoGestaoBody(effsAll, hojeStr, pguInicio, pguFim);
     } else if (!meuTurno) {
       bodyHtml = turnoPickerHtml();
     } else {
@@ -1115,21 +1119,6 @@
     container.querySelectorAll("details[data-gkey]").forEach(function (d) {
       d.addEventListener("toggle", function () { groupOpenState[d.getAttribute("data-gkey")] = d.open; });
     });
-
-    if (pguModo === "gestao") {
-      A.wireMultiSelect("msHojeEncarregado", function (values) { hojeFilters.encarregado = values; renderHoje(lastEffs); });
-      A.wireMultiSelect("msHojeFiscalObra", function (values) { hojeFilters.fiscalObra = values; renderHoje(lastEffs); });
-      A.wireMultiSelect("msHojeFiscalSeguranca", function (values) { hojeFilters.fiscalSeguranca = values; renderHoje(lastEffs); });
-      A.wireMultiSelect("msHojeEmpresa", function (values) { hojeFilters.executante = values; renderHoje(lastEffs); });
-      A.wireMultiSelect("msHojeTurno", function (values) { hojeFilters.turno = values; renderHoje(lastEffs); });
-      var clearBtn = A.$("pguHojeClearFiltros");
-      if (clearBtn) {
-        clearBtn.addEventListener("click", function () {
-          hojeFilters = { turno: [], executante: [], encarregado: [], fiscalObra: [], fiscalSeguranca: [] };
-          renderHoje(lastEffs);
-        });
-      }
-    }
   }
 
   // Ligado uma unica vez (em renderShell) sobre o container fixo da aba "Hoje" -- usa delegacao
@@ -1176,6 +1165,14 @@
     });
     A.onDelegated(container, "#pguTrocarTurno", function () {
       meuTurno = null;
+      renderHoje(lastEffs);
+    });
+    A.onDelegated(container, "[data-pick-dia-gestao]", function (el) {
+      pguGestaoDia = el.getAttribute("data-pick-dia-gestao");
+      renderHoje(lastEffs);
+    });
+    A.onDelegated(container, "[data-pick-turno-gestao]", function (el) {
+      pguGestaoTurno = el.getAttribute("data-pick-turno-gestao");
       renderHoje(lastEffs);
     });
 
