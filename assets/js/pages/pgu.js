@@ -842,6 +842,21 @@
     return grupo.itens.length === 1 && (grupo.itens[0].nome || "").trim().toUpperCase() === (grupo.label || "").trim().toUpperCase();
   }
 
+  // Atividade concluída não precisa mais chamar atenção -- desce pro fim da lista (dentro do
+  // mesmo grupo) pra sobrar espaço visual pro que ainda está pendente. Sort é estável (JS
+  // moderno), então a ordem cronológica original se mantém dentro de cada bloco (pendentes /
+  // concluídas).
+  function pendentesPrimeiro(itens) {
+    return itens.slice().sort(function (a, b) {
+      var aDone = a.status === "Concluída", bDone = b.status === "Concluída";
+      if (aDone === bDone) return 0;
+      return aDone ? 1 : -1;
+    });
+  }
+  function grupoTemPendencia(itens) {
+    return itens.some(function (e) { return e.status !== "Concluída"; });
+  }
+
   // Agrupa as atividades por TR/ativo -> Componente -> Disciplina (o mesmo WBS do cronograma da
   // PGU) em vez de lista lisa. Cada nivel tem um estilo bem diferente (cartao / faixa azul /
   // pilula colorida) pra ficar facil de distinguir onde voce esta na hierarquia.
@@ -892,11 +907,16 @@
     var porTR = groupBy(effs, function (e) { return e.area; });
     // Ordena os GRUPOS pelo nome do TR (TCLD 0101SA-01, -02, -03...) -- sem isso, o grupo que
     // aparecia primeiro era o que por acaso tivesse a atividade mais cedo naquele turno/dia (ex.:
-    // TR-04 antes do TR-01), o que não bate com a ordem do cronograma. As atividades DENTRO de
-    // cada grupo continuam na ordem cronológica (já vêm ordenadas de quem chamou essa função).
-    porTR.sort(function (a, b) { return a.label < b.label ? -1 : (a.label > b.label ? 1 : 0); });
+    // TR-04 antes do TR-01), o que não bate com a ordem do cronograma. Grupo 100% concluído desce
+    // pro fim da lista (mesmo critério de "pendentesPrimeiro", só que no nível do TR inteiro), pra
+    // não competir por atenção com quem ainda tem trabalho em aberto.
+    porTR.sort(function (a, b) {
+      var aPend = grupoTemPendencia(a.itens), bPend = grupoTemPendencia(b.itens);
+      if (aPend !== bPend) return aPend ? -1 : 1;
+      return a.label < b.label ? -1 : (a.label > b.label ? 1 : 0);
+    });
     var html = porTR.map(function (trGroup) {
-      var porComp = groupBy(trGroup.itens, function (e) { return e.componente; });
+      var porComp = groupBy(pendentesPrimeiro(trGroup.itens), function (e) { return e.componente; });
       var compHtml = porComp.map(function (compGroup) {
         var body = '<div class="pgu-group__body">' + compGroup.itens.map(function (e) { return activityCardHtml(e, !!showEncarregado); }).join("") + "</div>";
         if (compGroup.label === SEM_CLASSIFICACAO) return body;
