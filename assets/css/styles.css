@@ -1792,3 +1792,22 @@ details.pgu-group-disciplina > summary .pgu-group__count { background: rgba(255,
   .pgu-turno-header { padding: 16px; }
   .pgu-turno-header__title { font-size: 15px; }
 }
+
+/* ------------------------------------------------------------ Modo PDF (imprimir/salvar como PDF)
+   Reaproveita a mesma tela do turno atual -- só esconde navegação/ações e deixa a lista de
+   atividades e os cabeçalhos legíveis em papel. As cores só aparecem na impressão porque os
+   navegadores tiram fundo colorido por padrão a menos que isso seja forçado. */
+@media print {
+  * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  @page { margin: 12mm; }
+
+  .pgu-minibar, .pgu-modeswitch, .countdown-banner, #statusPills, .footnote,
+  .pgu-turno-header__actions, .pgu-card__actions, .pgu-card__pct-thumb,
+  .chip-grid, .pgu-gestao-daybar {
+    display: none !important;
+  }
+
+  .pgu-standalone { max-width: none; }
+  .pgu-card, .kpi-card, .panel { box-shadow: none; break-inside: avoid; }
+  details.pgu-group-tr, details.pgu-group-componente, details.pgu-group-disciplina { break-inside: avoid; }
+}

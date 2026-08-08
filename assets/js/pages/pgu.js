@@ -1057,6 +1057,9 @@
     return '<div class="pgu-turno-header" style="background:linear-gradient(135deg, var(--vale-blue), #1f6fa0);">' +
         '<div><div class="pgu-turno-header__title">🖥️ Visão geral — Modo Gestão</div>' +
         '<div class="pgu-turno-header__sub">Vendo ' + A.esc(diaFmt) + ' · ' + A.esc(turnoFmt) + ' · ' + A.fmtNum(filtradas.length) + ' de ' + A.fmtNum(effsAll.length) + ' atividades</div></div>' +
+        '<div class="pgu-turno-header__actions">' +
+          '<button type="button" class="pgu-btn-ghost" id="pguPdfBtn">📄 PDF</button>' +
+        "</div>" +
       "</div>" +
       gestaoDiaChipsHtml(pguInicio, pguFim, hojeStr) +
       gestaoTurnoChipsHtml() +
@@ -1088,6 +1091,7 @@
         '<div><div class="pgu-turno-header__title">🕐 Turno ' + A.esc(tAtual) + '</div>' +
         '<div class="pgu-turno-header__sub">Vendo ' + A.esc(tituloDia) + ' · atividades programadas pra esse turno</div></div>' +
         '<div class="pgu-turno-header__actions">' +
+          '<button type="button" class="pgu-btn-ghost" id="pguPdfBtn">📄 PDF</button>' +
           (podeEncerrar ? '<button type="button" class="pgu-btn-ghost pgu-btn-ghost--danger" id="pguEncerrarTurno">🔒 Encerrar turno</button>' : "") +
           '<button type="button" class="pgu-btn-ghost" id="pguTrocarTurno">Trocar turno</button>' +
         "</div>" +
@@ -1258,6 +1262,15 @@
 
       A.toast("Turno encerrado.");
       renderAll();
+    });
+
+    // ---- PDF: abre a caixa de impressão do navegador (a pessoa escolhe "Salvar como PDF") sobre
+    // uma versão enxuta da MESMA lista que está na tela (ver regras @media print no CSS) --
+    // funciona offline, sem depender de biblioteca externa. Como impressão só mostra o que já está
+    // aberto no DOM, força toda pasta/TR/componente a abrir antes de chamar print(). ----
+    A.onDelegated(container, "#pguPdfBtn", function () {
+      container.querySelectorAll("details[data-gkey]").forEach(function (d) { d.open = true; });
+      window.print();
     });
 
     // ---- Barra de avanço arrastável (pula de 10 em 10) ----
