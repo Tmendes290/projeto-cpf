@@ -296,6 +296,9 @@
       '<div class="pgu-turno-header" style="background:linear-gradient(135deg, var(--vale-blue), #1f6fa0);">' +
         '<div><div class="pgu-turno-header__title">📈 Curva S — Report Gerência</div>' +
         '<div class="pgu-turno-header__sub">Uso interno — não compartilhar este link com encarregados. Atualizado ' + fmtDataHora(agora) + "</div></div>" +
+        '<div class="pgu-turno-header__actions">' +
+          '<button type="button" class="pgu-btn-ghost" id="pguPdfBtn">📄 PDF</button>' +
+        "</div>" +
       "</div>" +
       '<div class="kpi-grid">' +
         kpiCard("🏁", "Atividades", A.fmtNum(effs.length)) +
@@ -319,4 +322,9 @@
   render();
   A.wireAtualizarButton(["pgu"], render);
   setInterval(function () { render(); }, 60000);
+
+  // Delegado no .main (fixo, sobrevive ao content.innerHTML ser trocado a cada render/refresh) --
+  // abre a caixa de impressão do navegador pra "Salvar como PDF" e divulgar o report (mesma ideia
+  // do botão PDF do pgu.js, ver regras @media print no CSS).
+  A.onDelegated(document.querySelector(".main"), "#pguPdfBtn", function () { window.print(); });
 })();
