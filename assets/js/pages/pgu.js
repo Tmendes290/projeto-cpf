@@ -8,6 +8,14 @@
   var SUPA_URL = "https://ehbiyqqpzqrluvuqrljp.supabase.co";
   var SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVoYml5cXFwenFybHV2dXFybGpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMjM3MTcsImV4cCI6MjA5NDg5OTcxN30.lW_Jdc7SC7FKh9OJPBCYdfN-QMXFTYGjterU3eWOFTc";
   var supa = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+  // Alerta de fim de turno no WhatsApp (grupo da gerência) -- chama um endpoint no servidor do
+  // dashboard-dotações (dono da chave da WAME-API, que nunca fica exposta aqui). O domínio
+  // próprio (não o *.onrender.com) é de propósito: o onrender.com já foi bloqueado antes pela
+  // rede da Vale (ver [[project_dashboard]]), e quem chama esse fetch é o navegador do
+  // encarregado, que pode estar nessa mesma rede. PGU_ALERTA_TOKEN é só anti-spam -- não é
+  // segredo de verdade, já que qualquer coisa embutida no JS de um site estático é pública.
+  var PGU_ALERTA_URL = "https://dashboardsalobo.com.br/api/pgu-alerta-turno";
+  var PGU_ALERTA_TOKEN = "4585d5d91d345c56872bcf9771a5d06f6f6c";
   var mainTable;
   var activitiesByUid = {};
   var allAtividades = [];
@@ -54,6 +62,24 @@
   function pushHistory(entry) {
     supa.from("pgu_historico").insert({ uid: entry.uid, dados: entry }).then(function (res) {
       if (res.error) console.warn("[PGU] erro ao gravar histórico:", res.error);
+    });
+  }
+
+  // Avisa o grupo de gerência no WhatsApp quando um turno é encerrado com atividade pendente --
+  // "atrasadas" é [{nome, area, motivo}]. Não bloqueia o "Encerrar turno": dispara em segundo
+  // plano e só avisa por toast se der certo/errado.
+  function enviarAlertaWhatsApp(turno, diaISO, atrasadas) {
+    var linkReport = window.location.origin + "/report.html";
+    fetch(PGU_ALERTA_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: PGU_ALERTA_TOKEN, turno: turno, dia: A.fmtDate(diaISO), atrasadas: atrasadas, linkReport: linkReport })
+    }).then(function (r) {
+      if (!r.ok) return r.json().catch(function () { return {}; }).then(function (b) { throw new Error(b.error || ("HTTP " + r.status)); });
+      A.toast("Ponto de atenção enviado no grupo do WhatsApp.");
+    }).catch(function (e) {
+      console.warn("[PGU] erro ao enviar alerta WhatsApp:", e);
+      A.toast("Turno encerrado, mas não consegui avisar no WhatsApp: " + e.message, "error");
     });
   }
 
@@ -1260,6 +1286,10 @@
 
       estouro.forEach(function (e) { saveOverrideField(e.uid, "turno", nextTurno(tAtual)); });
 
+      // Só entra na lista do alerta de WhatsApp quem de fato ficou com motivo salvo -- se a
+      // pessoa cancelar o prompt de motivo (ver "Tentar de novo?"), aquela atividade é pulada
+      // aqui também, pra não mandar aviso sobre um motivo que não existe.
+      var alertaAtrasadas = [];
       atraso.forEach(function (e) {
         var pred = predecessoraPendente(activitiesByUid[e.uid]);
         var motivo;
@@ -1273,10 +1303,12 @@
           }
         }
         saveOverrideFields(e.uid, { status: "Atrasada", observacoes: motivo.trim(), herancaDeTurno: tAtual, turno: nextTurno(tAtual) });
+        alertaAtrasadas.push({ nome: e.nome, area: e.area, motivo: motivo.trim() });
       });
 
       A.toast("Turno encerrado.");
       renderAll();
+      if (alertaAtrasadas.length) enviarAlertaWhatsApp(tAtual, diaAlvo, alertaAtrasadas);
     });
 
     // ---- PDF: abre a caixa de impressão do navegador (a pessoa escolhe "Salvar como PDF") sobre
