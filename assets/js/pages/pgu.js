@@ -697,8 +697,15 @@
   function activityCardHtml(e, showEncarregado) {
     var farol = farolDe(e);
     var ic = iconeDisciplina(e.disciplina);
-    var breadcrumb = A.esc(e.area || "—") + (e.componente ? " · " + A.esc(e.componente) : "");
-    if (showEncarregado && e.encarregado) breadcrumb += " · " + A.esc(e.encarregado);
+    // Quando a atividade é o próprio "TR/ativo" (sem componente por baixo, ex.: marcos soltos
+    // fora de qualquer TR), area === nome e o card ficava com o mesmo texto duas vezes -- só
+    // mostra a área se ela disser algo além do título.
+    var mesmoNomeDaArea = (e.area || "").trim().toUpperCase() === (e.nome || "").trim().toUpperCase();
+    var partesBreadcrumb = [];
+    if (e.area && !mesmoNomeDaArea) partesBreadcrumb.push(A.esc(e.area));
+    if (e.componente) partesBreadcrumb.push(A.esc(e.componente));
+    if (showEncarregado && e.encarregado) partesBreadcrumb.push(A.esc(e.encarregado));
+    var breadcrumb = partesBreadcrumb.join(" · ");
 
     var hi = horaSo(e.inicioDataHora), ht = horaSo(e.terminoDataHora);
     var horarioHtml = (hi && ht) ? '<div class="pgu-card__horario"><span>🕐 Previsto ' + hi + '–' + ht + "</span></div>" : "";
@@ -726,7 +733,7 @@
             '<div class="pgu-card__icon pgu-card__icon--' + ic[1] + '">' + ic[0] + "</div>" +
             '<div class="pgu-card__info">' +
               '<div class="pgu-card__nome">' + A.esc(e.nome) + "</div>" +
-              '<div class="pgu-card__breadcrumb">' + breadcrumb + "</div>" +
+              (breadcrumb ? '<div class="pgu-card__breadcrumb">' + breadcrumb + "</div>" : "") +
               '<div class="pgu-card__badges">' +
                 '<span class="badge ' + statusBadgeClass(e.status) + '">' + A.esc(e.status) + "</span>" +
                 (e.turno ? '<span class="badge dim">🕐 ' + A.esc(e.turno) + "</span>" : "") +
@@ -1102,7 +1109,7 @@
         kpiCard("📊", "Avanço médio", pctMedio + "%", "blue") +
       "</div>" +
       (herdadas.length ? '<div class="pgu-inherit-note">ℹ️ ' + herdadas.length + ' atividade(s) chegaram de um turno anterior sem terem sido concluídas lá (marcadas com ↪ abaixo).</div>' : "") +
-      '<div class="panel"><h3 class="panel__title">Atividades deste turno, por TR/ativo</h3>' +
+      '<div class="panel">' +
         (doTurno.length ? groupedByTrOnlyHtml(doTurno) : '<div class="table-caption">Nenhuma atividade programada pra este turno. 🎉</div>') +
       "</div>";
   }
