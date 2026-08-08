@@ -1734,6 +1734,12 @@ details.pgu-group-disciplina > summary .pgu-group__count { background: rgba(255,
 .pgu-gestao-chip--sel { background: var(--vale-green); color: var(--white); border-color: var(--vale-green); }
 .pgu-gestao-chip__pin { font-size: 10px; }
 
+/* Página standalone da PGU (index.html/pgu.html) -- fica num cartão estreito centralizado, tipo
+   app de celular, em vez de esticar pra ocupar a tela toda do computador. Só essa página usa essa
+   classe, então as outras páginas do site (Escopo, Cronograma etc.) continuam largas normalmente. */
+.pgu-standalone { max-width: 900px; margin: 0 auto; float: none; }
+.pgu-standalone .topbar { border-radius: 0 0 var(--radius) var(--radius); }
+
 .pgu-inherit-note {
   background: rgba(123,97,255,.08); border: 1px solid rgba(123,97,255,.3); color: var(--dark-gray);
   border-radius: 10px; padding: 10px 14px; font-size: 12px; margin-bottom: 16px;
