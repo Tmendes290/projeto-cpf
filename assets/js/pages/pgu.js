@@ -65,18 +65,20 @@
     });
   }
 
-  // Avisa o grupo de gerência no WhatsApp quando um turno é encerrado com atividade pendente --
-  // "atrasadas" é [{nome, area, motivo}]. Não bloqueia o "Encerrar turno": dispara em segundo
-  // plano e só avisa por toast se der certo/errado.
-  function enviarAlertaWhatsApp(turno, diaISO, atrasadas) {
+  // Avisa o grupo de gerência no WhatsApp toda vez que um turno é encerrado -- sempre manda um
+  // resumo de produtividade (horas planejadas x concluídas nesse turno) e, se sobrou pendência,
+  // a lista de atividades atrasadas com motivo. "atrasadas" é [{nome, area, motivo}];
+  // "produtividade" é {qtdPlanejada, qtdConcluida, horasPlanejadas, horasConcluidas, pct}. Não
+  // bloqueia o "Encerrar turno": dispara em segundo plano e só avisa por toast se der certo/errado.
+  function enviarAlertaWhatsApp(turno, diaISO, atrasadas, produtividade) {
     var linkReport = window.location.origin + "/report.html";
     fetch(PGU_ALERTA_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: PGU_ALERTA_TOKEN, turno: turno, dia: A.fmtDate(diaISO), atrasadas: atrasadas, linkReport: linkReport })
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+      body: JSON.stringify({ token: PGU_ALERTA_TOKEN, turno: turno, dia: A.fmtDate(diaISO), atrasadas: atrasadas, produtividade: produtividade, linkReport: linkReport })
     }).then(function (r) {
       if (!r.ok) return r.json().catch(function () { return {}; }).then(function (b) { throw new Error(b.error || ("HTTP " + r.status)); });
-      A.toast("Ponto de atenção enviado no grupo do WhatsApp.");
+      A.toast("Report do turno enviado no grupo do WhatsApp.");
     }).catch(function (e) {
       console.warn("[PGU] erro ao enviar alerta WhatsApp:", e);
       A.toast("Turno encerrado, mas não consegui avisar no WhatsApp: " + e.message, "error");
@@ -290,6 +292,7 @@
       // area = TR/ativo (ex.: TCLD 0101SA-01); componente = sistema/parte do TR (ex.: ACIONAMENTO
       // M1); disciplina = Mecânica/Elétrica/Civil -- os 3 vem do nivel do cronograma (WBS).
       componente: a.componente || "", disciplina: a.disciplina || "",
+      duracaoHoras: a.duracaoHoras || 0,
       inicio: a.inicio, termino: a.termino, inicioBaseline: a.inicioBaseline, terminoBaseline: a.terminoBaseline,
       inicioDataHora: a.inicioDataHora, terminoDataHora: a.terminoDataHora,
       milestone: a.milestone, critico: a.critico,
@@ -1274,7 +1277,24 @@
         return e.turno === tAtual && e.inicio && e.termino && e.inicio <= diaAlvo && e.termino >= diaAlvo;
       });
       var pendentes = doTurnoHoje.filter(function (e) { return e.status !== "Concluída"; });
-      if (!pendentes.length) { A.toast("Tudo concluído nesse turno. 🎉"); return; }
+
+      // Produtividade do turno: capacidade planejada (soma da duração de tudo que estava
+      // programado pra esse turno) vs. o que de fato foi entregue -- se o encarregado concluiu
+      // mais horas do que o planejado (adiantou atividades futuras, por ex.), pct passa de 100%.
+      var concluidasDoTurno = doTurnoHoje.filter(function (e) { return e.status === "Concluída"; });
+      var horasPlanejadas = doTurnoHoje.reduce(function (s, e) { return s + (e.duracaoHoras || 0); }, 0);
+      var horasConcluidas = concluidasDoTurno.reduce(function (s, e) { return s + (e.duracaoHoras || 0); }, 0);
+      var produtividade = {
+        qtdPlanejada: doTurnoHoje.length, qtdConcluida: concluidasDoTurno.length,
+        horasPlanejadas: Math.round(horasPlanejadas * 10) / 10, horasConcluidas: Math.round(horasConcluidas * 10) / 10,
+        pct: horasPlanejadas > 0 ? Math.round((horasConcluidas / horasPlanejadas) * 100) : null
+      };
+
+      if (!pendentes.length) {
+        A.toast("Tudo concluído nesse turno. 🎉");
+        enviarAlertaWhatsApp(tAtual, diaAlvo, [], produtividade);
+        return;
+      }
 
       var estouro = pendentes.filter(programadaParaUltrapassarTurno);
       var atraso = pendentes.filter(function (e) { return !programadaParaUltrapassarTurno(e); });
@@ -1308,7 +1328,7 @@
 
       A.toast("Turno encerrado.");
       renderAll();
-      if (alertaAtrasadas.length) enviarAlertaWhatsApp(tAtual, diaAlvo, alertaAtrasadas);
+      enviarAlertaWhatsApp(tAtual, diaAlvo, alertaAtrasadas, produtividade);
     });
 
     // ---- PDF: abre a caixa de impressão do navegador (a pessoa escolhe "Salvar como PDF") sobre
