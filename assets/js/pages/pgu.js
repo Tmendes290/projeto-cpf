@@ -1072,6 +1072,7 @@
         '<div><div class="pgu-turno-header__title">🖥️ Visão geral — Modo Gestão</div>' +
         '<div class="pgu-turno-header__sub">Vendo ' + A.esc(diaFmt) + ' · ' + A.esc(turnoFmt) + ' · ' + A.fmtNum(filtradas.length) + ' de ' + A.fmtNum(effsAll.length) + ' atividades</div></div>' +
         '<div class="pgu-turno-header__actions">' +
+          '<a class="pgu-btn-ghost" href="report.html" target="_blank" rel="noreferrer" style="text-decoration:none;display:inline-flex;align-items:center;">📈 Report</a>' +
           '<button type="button" class="pgu-btn-ghost" id="pguPdfBtn">📄 PDF</button>' +
         "</div>" +
       "</div>" +
