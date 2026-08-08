@@ -66,16 +66,18 @@
   }
 
   // Avisa o grupo de gerência no WhatsApp toda vez que um turno é encerrado -- sempre manda um
-  // resumo de produtividade (horas planejadas x concluídas nesse turno) e, se sobrou pendência,
-  // a lista de atividades atrasadas com motivo. "atrasadas" é [{nome, area, motivo}];
-  // "produtividade" é {qtdPlanejada, qtdConcluida, horasPlanejadas, horasConcluidas, pct}. Não
-  // bloqueia o "Encerrar turno": dispara em segundo plano e só avisa por toast se der certo/errado.
-  function enviarAlertaWhatsApp(turno, diaISO, atrasadas, produtividade) {
-    var linkReport = window.location.origin + "/report.html";
+  // resumo de produtividade (horas planejadas x concluídas nesse turno), uma tabela por
+  // encarregado x TR/ativo (quantas atividades cada um executou do que era esperado) e, se sobrou
+  // pendência, a lista de atrasadas com motivo, já agrupada por encarregado responsável.
+  // "atrasadas" é [{nome, area, motivo, encarregado}]; "porEncarregado" é
+  // [{encarregado, area, planejado, concluido}]; "produtividade" é
+  // {qtdPlanejada, qtdConcluida, horasPlanejadas, horasConcluidas, pct}. Não bloqueia o "Encerrar
+  // turno": dispara em segundo plano e só avisa por toast se der certo/errado.
+  function enviarAlertaWhatsApp(turno, diaISO, atrasadas, produtividade, porEncarregado) {
     fetch(PGU_ALERTA_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json; charset=utf-8" },
-      body: JSON.stringify({ token: PGU_ALERTA_TOKEN, turno: turno, dia: A.fmtDate(diaISO), atrasadas: atrasadas, produtividade: produtividade, linkReport: linkReport })
+      body: JSON.stringify({ token: PGU_ALERTA_TOKEN, turno: turno, dia: A.fmtDate(diaISO), atrasadas: atrasadas, produtividade: produtividade, porEncarregado: porEncarregado })
     }).then(function (r) {
       if (!r.ok) return r.json().catch(function () { return {}; }).then(function (b) { throw new Error(b.error || ("HTTP " + r.status)); });
       A.toast("Report do turno enviado no grupo do WhatsApp.");
@@ -1290,9 +1292,21 @@
         pct: horasPlanejadas > 0 ? Math.round((horasConcluidas / horasPlanejadas) * 100) : null
       };
 
+      // Mesma ideia, mas quebrada por encarregado x TR/ativo (ex.: "João, TCLD 0101SA-01: 8/10")
+      // -- vira a tabela mandada no WhatsApp pra mostrar quem executou o quê.
+      var porEncMap = {}, porEncOrder = [];
+      doTurnoHoje.forEach(function (e) {
+        var enc = e.encarregado || "Sem encarregado";
+        var key = enc + "||" + (e.area || "—");
+        if (!porEncMap[key]) { porEncMap[key] = { encarregado: enc, area: e.area || "—", planejado: 0, concluido: 0 }; porEncOrder.push(key); }
+        porEncMap[key].planejado++;
+        if (e.status === "Concluída") porEncMap[key].concluido++;
+      });
+      var porEncarregado = porEncOrder.map(function (k) { return porEncMap[k]; });
+
       if (!pendentes.length) {
         A.toast("Tudo concluído nesse turno. 🎉");
-        enviarAlertaWhatsApp(tAtual, diaAlvo, [], produtividade);
+        enviarAlertaWhatsApp(tAtual, diaAlvo, [], produtividade, porEncarregado);
         return;
       }
 
@@ -1323,12 +1337,12 @@
           }
         }
         saveOverrideFields(e.uid, { status: "Atrasada", observacoes: motivo.trim(), herancaDeTurno: tAtual, turno: nextTurno(tAtual) });
-        alertaAtrasadas.push({ nome: e.nome, area: e.area, motivo: motivo.trim() });
+        alertaAtrasadas.push({ nome: e.nome, area: e.area, motivo: motivo.trim(), encarregado: e.encarregado || "" });
       });
 
       A.toast("Turno encerrado.");
       renderAll();
-      enviarAlertaWhatsApp(tAtual, diaAlvo, alertaAtrasadas, produtividade);
+      enviarAlertaWhatsApp(tAtual, diaAlvo, alertaAtrasadas, produtividade, porEncarregado);
     });
 
     // ---- PDF: abre a caixa de impressão do navegador (a pessoa escolhe "Salvar como PDF") sobre
