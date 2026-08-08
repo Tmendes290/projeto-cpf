@@ -1487,40 +1487,38 @@
   function renderShell() {
     var content = A.$("content");
     content.innerHTML =
-      '<div class="panel" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">' +
-        '<div style="flex:1;min-width:220px;">' +
-          '<div style="font-weight:700;font-size:13px;">📥 Importar cronograma (XML do MS Project)</div>' +
-          '<div style="font-size:11.5px;color:var(--vale-gray);">Substitui a base de atividades pra todo mundo. Atualizações de campo já feitas (status, %, observações) não se perdem.</div>' +
-        '</div>' +
-        '<input type="file" id="pguImportFile" accept=".xml" style="max-width:220px;">' +
-        '<button type="button" class="btn-neutral" id="pguImportBtn">Importar</button>' +
-        '<span id="pguImportStatus" style="font-size:12px;color:var(--vale-gray);"></span>' +
-      "</div>" +
       '<div id="pguHojeContent"></div>' +
-      '<div class="footnote">Atualizações de campo (status, %, observações, encarregado, turno) ficam salvas no servidor e são compartilhadas entre todo mundo — atualiza sozinho a cada ~45s, ou aperte "Atualizar" a qualquer momento.</div>';
+      '<div class="footnote">Atualizações de campo (status, %, observações, encarregado, turno) ficam salvas no servidor e são compartilhadas entre todo mundo — atualiza sozinho a cada ~45s, ou aperte 🔄 a qualquer momento.</div>';
     wireHojeTab();
+  }
 
-    A.$("pguImportBtn").addEventListener("click", async function () {
-      var fileInput = A.$("pguImportFile");
-      var statusEl = A.$("pguImportStatus");
+  // Botão/arquivo de importar ficam FORA do #content (não são recriados a cada renderShell), então
+  // são ligados uma unica vez -- clicar no icone só abre o seletor de arquivo nativo; escolher o
+  // arquivo já dispara a importação sozinha, sem precisar de um segundo clique em "Importar".
+  function wireImportButton() {
+    var iconBtn = A.$("pguImportIconBtn");
+    var fileInput = A.$("pguImportFile");
+    if (!iconBtn || !fileInput) return;
+    iconBtn.addEventListener("click", function () { fileInput.click(); });
+    fileInput.addEventListener("change", async function () {
       var file = fileInput.files[0];
-      if (!file) { statusEl.textContent = "Selecione um arquivo .xml primeiro."; return; }
-      statusEl.textContent = "Lendo arquivo…";
+      if (!file) return;
+      iconBtn.disabled = true;
+      A.toast("Lendo cronograma…");
       try {
         var text = await file.text();
         var novaBase = parsePguXml(text);
-        statusEl.textContent = "Salvando " + novaBase.totalAtividades + " atividades…";
         await salvarBaselineImportada(novaBase);
         window.PANEL_DATA = window.PANEL_DATA || {};
         window.PANEL_DATA.pgu = novaBase;
-        statusEl.textContent = "✔ Importado: " + novaBase.totalAtividades + " atividades.";
-        fileInput.value = "";
-        A.toast("Cronograma importado e compartilhado com todo mundo.");
+        A.toast("✔ Cronograma importado (" + novaBase.totalAtividades + " atividades) e compartilhado com todo mundo.");
         renderAll();
       } catch (e) {
         console.error(e);
-        statusEl.textContent = "Erro: " + e.message;
         A.toast("Erro ao importar: " + e.message, "error");
+      } finally {
+        fileInput.value = "";
+        iconBtn.disabled = false;
       }
     });
   }
@@ -1546,6 +1544,7 @@
   }
 
   renderShell();
+  wireImportButton();
   (async function boot() {
     await Promise.all([loadOverridesFromSupabase(), loadBaselineFromSupabase()]);
     renderAll();

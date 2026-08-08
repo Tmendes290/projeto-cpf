@@ -8,16 +8,12 @@
 </head>
 <body>
 <div class="main pgu-standalone">
-  <div class="topbar">
-    <div>
-      <div class="topbar__title">PGU — Repotenciamento do TCLD</div>
-      <div class="topbar__subtitle">Acompanhamento de campo e planejamento da Parada Geral de Usina</div>
-    </div>
-    <div class="topbar__meta">
-      <div id="statusPills"></div>
-      <button type="button" class="btn-refresh" id="btnAtualizar">🔄 Atualizar</button>
-    </div>
+  <div class="pgu-minibar">
+    <input type="file" id="pguImportFile" accept=".xml" style="display:none;">
+    <button type="button" class="pgu-icon-btn" id="pguImportIconBtn" title="Importar cronograma (XML do MS Project)">📥</button>
+    <button type="button" class="pgu-icon-btn" id="btnAtualizar" title="Atualizar">🔄</button>
   </div>
+  <div id="statusPills" style="display:none;"></div>
   <div class="content" id="content"></div>
 </div>
 
