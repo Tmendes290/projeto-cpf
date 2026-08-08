@@ -835,8 +835,9 @@
     return '<div id="pguGroupedTree">' + html + "</div>";
   }
 
-  // Agrupamento de 1 nível só (por TR/ativo) usado no Modo Encarregado -- mais simples que a
-  // árvore de 3 níveis do Modo Gestão, pra achar a atividade rápido sem abrir várias pastas.
+  // Agrupamento de 2 níveis (TR/ativo -> Componente, nível 4 do cronograma: ACIONAMENTO, CHUTE,
+  // COMISSIONAMENTO etc.) usado no Modo Encarregado -- mais simples que a árvore de 3 níveis do
+  // Modo Gestão (sem a disciplina), mas ainda separa por equipamento/sistema dentro do TR.
   function groupedByTrOnlyHtml(effs, showEncarregado) {
     if (!effs.length) return '<div class="table-caption">Nenhuma atividade encontrada.</div>';
     var porTR = groupBy(effs, function (e) { return e.area; });
@@ -846,14 +847,23 @@
     // cada grupo continuam na ordem cronológica (já vêm ordenadas de quem chamou essa função).
     porTR.sort(function (a, b) { return a.label < b.label ? -1 : (a.label > b.label ? 1 : 0); });
     var html = porTR.map(function (trGroup) {
-      var body = '<div class="pgu-group__body">' + trGroup.itens.map(function (e) { return activityCardHtml(e, !!showEncarregado); }).join("") + "</div>";
-      if (trGroup.label === SEM_CLASSIFICACAO) return body;
+      var porComp = groupBy(trGroup.itens, function (e) { return e.componente; });
+      var compHtml = porComp.map(function (compGroup) {
+        var body = '<div class="pgu-group__body">' + compGroup.itens.map(function (e) { return activityCardHtml(e, !!showEncarregado); }).join("") + "</div>";
+        if (compGroup.label === SEM_CLASSIFICACAO) return body;
+        var keyC = "comp-enc:" + trGroup.label + "|" + compGroup.label;
+        return '<details class="pgu-group-componente" data-gkey="' + A.esc(keyC) + '"' + (groupOpenState[keyC] ? " open" : "") + '><summary>' +
+          "⚙️ " + A.esc(compGroup.label) +
+          '<span class="pgu-group__count">' + compGroup.itens.length + " atividade" + (compGroup.itens.length === 1 ? "" : "s") + "</span>" +
+          "</summary>" + body + "</details>";
+      }).join("");
+      if (trGroup.label === SEM_CLASSIFICACAO) return '<div class="pgu-group__body">' + compHtml + "</div>";
       var key = "tr-enc:" + trGroup.label;
       return '<details class="pgu-group-tr" data-gkey="' + A.esc(key) + '"' + (groupOpenState[key] ? " open" : "") + '><summary>' +
         "🛠️ " + A.esc(trGroup.label) +
         '<span class="pgu-group__count">' + trGroup.itens.length + " atividade" + (trGroup.itens.length === 1 ? "" : "s") + "</span>" +
         "</summary>" +
-        body +
+        '<div class="pgu-group__body">' + compHtml + "</div>" +
         "</details>";
     }).join("");
     return '<div id="pguGroupedTree">' + html + "</div>";
