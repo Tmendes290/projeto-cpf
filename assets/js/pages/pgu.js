@@ -800,6 +800,13 @@
     return "#747678";
   }
 
+  // Marcos soltos (fora de qualquer TR) viram seu próprio grupo de "TR/ativo" com o mesmo nome da
+  // única atividade dentro dele -- mostrar o cabeçalho da pasta E o card, os dois com o mesmo
+  // texto, é redundante. Nesses casos, pula o cabeçalho e mostra só o card direto.
+  function grupoRedundante(grupo) {
+    return grupo.itens.length === 1 && (grupo.itens[0].nome || "").trim().toUpperCase() === (grupo.label || "").trim().toUpperCase();
+  }
+
   // Agrupa as atividades por TR/ativo -> Componente -> Disciplina (o mesmo WBS do cronograma da
   // PGU) em vez de lista lisa. Cada nivel tem um estilo bem diferente (cartao / faixa azul /
   // pilula colorida) pra ficar facil de distinguir onde voce esta na hierarquia.
@@ -830,7 +837,7 @@
           '<div class="pgu-group__body">' + discHtml + "</div>" +
           "</details>";
       }).join("");
-      if (trGroup.label === SEM_CLASSIFICACAO) return '<div class="pgu-group__body">' + compHtml + "</div>";
+      if (trGroup.label === SEM_CLASSIFICACAO || grupoRedundante(trGroup)) return '<div class="pgu-group__body">' + compHtml + "</div>";
       var keyT = "tr:" + trGroup.label;
       return '<details class="pgu-group-tr" data-gkey="' + A.esc(keyT) + '"' + (groupOpenState[keyT] ? " open" : "") + '><summary>' +
         "🛠️ " + A.esc(trGroup.label) +
@@ -864,7 +871,7 @@
           '<span class="pgu-group__count">' + compGroup.itens.length + " atividade" + (compGroup.itens.length === 1 ? "" : "s") + "</span>" +
           "</summary>" + body + "</details>";
       }).join("");
-      if (trGroup.label === SEM_CLASSIFICACAO) return '<div class="pgu-group__body">' + compHtml + "</div>";
+      if (trGroup.label === SEM_CLASSIFICACAO || grupoRedundante(trGroup)) return '<div class="pgu-group__body">' + compHtml + "</div>";
       var key = "tr-enc:" + trGroup.label;
       return '<details class="pgu-group-tr" data-gkey="' + A.esc(key) + '"' + (groupOpenState[key] ? " open" : "") + '><summary>' +
         "🛠️ " + A.esc(trGroup.label) +
