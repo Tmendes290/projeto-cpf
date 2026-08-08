@@ -719,6 +719,12 @@
   var groupOpenState = {};
   // Cada filtro agora é uma lista (caixa de seleção com checkbox) em vez de um valor único.
   var hojeFilters = { turno: [], executante: [], encarregado: [], fiscalObra: [], fiscalSeguranca: [] };
+  // Snapshot do último "Encerrar turno" -- guarda o valor de override de CADA atividade tocada
+  // (ou null se ela não tinha override nenhum) ANTES da mutação, pra dar pra desfazer com um
+  // clique se a pessoa apertar sem querer. Só guarda o mais recente (não é histórico completo);
+  // expira sozinho depois de ULTIMO_ENCERRAR_TURNO_JANELA_MS.
+  var ultimoEncerrarTurno = null;
+  var ULTIMO_ENCERRAR_TURNO_JANELA_MS = 15 * 60 * 1000;
 
   function applyHojeFilters(effs) {
     return effs.filter(function (e) {
@@ -1172,12 +1178,14 @@
     // Encerra o turno do dia que está sendo visualizado nos chips (não precisa bater com a data
     // real do relógio) -- só não faz sentido em "Toda a PGU", onde não há um turno único pra fechar.
     var podeEncerrar = pendentes.length > 0 && diaStr !== TODA_PGU;
+    var podeDesfazer = !!ultimoEncerrarTurno && (Date.now() - ultimoEncerrarTurno.quando) < ULTIMO_ENCERRAR_TURNO_JANELA_MS;
 
     return '<div class="pgu-turno-header">' +
         '<div><div class="pgu-turno-header__title">🕐 Turno ' + A.esc(tAtual) + '</div>' +
         '<div class="pgu-turno-header__sub">Vendo ' + A.esc(tituloDia) + ' · atividades programadas pra esse turno</div></div>' +
         '<div class="pgu-turno-header__actions">' +
           '<button type="button" class="pgu-btn-ghost" id="pguPdfBtn">📄 PDF</button>' +
+          (podeDesfazer ? '<button type="button" class="pgu-btn-ghost pgu-btn-ghost--danger" id="pguDesfazerEncerrarTurno">↩️ Desfazer encerrar turno ' + A.esc(ultimoEncerrarTurno.turno) + '</button>' : "") +
           (podeEncerrar ? '<button type="button" class="pgu-btn-ghost pgu-btn-ghost--danger" id="pguEncerrarTurno">🔒 Encerrar turno</button>' : "") +
           '<button type="button" class="pgu-btn-ghost" id="pguTrocarTurno">Trocar turno</button>' +
         "</div>" +
@@ -1353,11 +1361,26 @@
 
       var estouro = pendentes.filter(programadaParaUltrapassarTurno);
       var atraso = pendentes.filter(function (e) { return !programadaParaUltrapassarTurno(e); });
+      // Dentro de "atraso", quem tem uma predecessora também pendente ganha motivo AUTOMÁTICO
+      // (sem prompt) -- é bom deixar isso claro no aviso, senão um clique só arrasta dezenas de
+      // atividade sem a pessoa perceber a dimensão (foi o que gerou o pedido de "desfazer").
+      var atrasoComPred = atraso.filter(function (e) { return !!predecessoraPendente(activitiesByUid[e.uid]); });
+      var atrasoSemPred = atraso.length - atrasoComPred.length;
 
-      var msg = "Encerrar o turno " + tAtual + "?\n";
-      if (estouro.length) msg += "• " + estouro.length + " atividade(s) já programada(s) pra continuar no próximo turno (normal, sem motivo).\n";
-      if (atraso.length) msg += "• " + atraso.length + " atividade(s) deveriam ter terminado neste turno e vão precisar de motivo.";
+      var msg = "Encerrar o turno " + tAtual + "?\n\n" +
+        pendentes.length + " atividade(s) não concluída(s) vão mudar de turno:\n";
+      if (estouro.length) msg += "• " + estouro.length + " já era esperado continuarem no próximo turno (normal, sem motivo).\n";
+      if (atrasoComPred.length) msg += "• " + atrasoComPred.length + " ficam \"Atrasada\" com motivo AUTOMÁTICO (predecessora também pendente).\n";
+      if (atrasoSemPred) msg += "• " + atrasoSemPred + " vão pedir motivo digitado por você.\n";
+      msg += "\nDá pra desfazer depois, mas confira antes de confirmar.";
       if (!confirm(msg)) return;
+
+      // Guarda o "antes" de cada atividade que vai ser tocada (override atual, ou null se não
+      // tinha nenhum) -- é o que permite desfazer com um clique se for sem querer.
+      var overridesAntes = loadOverrides();
+      var snapshotItens = estouro.concat(atraso).map(function (e) {
+        return { uid: e.uid, anterior: overridesAntes[e.uid] ? JSON.parse(JSON.stringify(overridesAntes[e.uid])) : null };
+      });
 
       estouro.forEach(function (e) { saveOverrideField(e.uid, "turno", nextTurno(tAtual)); });
 
@@ -1400,9 +1423,27 @@
         });
       });
 
-      A.toast("Turno encerrado.");
+      ultimoEncerrarTurno = { turno: tAtual, quando: Date.now(), itens: snapshotItens };
+      A.toast("Turno encerrado. Dá pra desfazer no botão ↩️ do cabeçalho, se precisar.");
       renderAll();
       enviarAlertaWhatsApp(tAtual, diaAlvo, alertaAtrasadas, produtividade, porEncarregado, proximoTurno);
+    });
+
+    // ---- Desfaz o último "Encerrar turno" -- devolve cada atividade tocada pro override que ela
+    // tinha ANTES (ou apaga o override, se ela não tinha nenhum), usando o snapshot guardado. ----
+    A.onDelegated(container, "#pguDesfazerEncerrarTurno", function () {
+      if (!ultimoEncerrarTurno) return;
+      if (!confirm('Desfazer o "Encerrar turno ' + ultimoEncerrarTurno.turno + '"? Isso restaura ' + ultimoEncerrarTurno.itens.length + ' atividade(s) pro estado de antes.')) return;
+      var overrides = loadOverrides();
+      ultimoEncerrarTurno.itens.forEach(function (item) {
+        if (item.anterior) overrides[item.uid] = item.anterior;
+        else delete overrides[item.uid];
+      });
+      saveOverrides(overrides);
+      recomputeCascade();
+      A.toast("Encerrar turno desfeito.");
+      ultimoEncerrarTurno = null;
+      renderAll();
     });
 
     // ---- PDF: abre a caixa de impressão do navegador (a pessoa escolhe "Salvar como PDF") sobre
