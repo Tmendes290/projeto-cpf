@@ -1,7 +1,7 @@
 // assets/js/pages/pgu.js — pagina PGU (Parada Geral de Usina): dashboard, timeline e
 // atualizacao rapida de campo. As atualizacoes (status/%, observacoes, encarregado, turno,
 // impedimentos) ficam salvas no Supabase (tabelas pgu_overrides/pgu_historico), entao
-// sincronizam entre qualquer pessoa/dispositivo (recarrega sozinho a cada ~45s).
+// sincronizam entre qualquer pessoa/dispositivo (recarrega quando a pessoa aperta 🔄).
 (function () {
   "use strict";
   var A = window.App;
@@ -1514,7 +1514,7 @@
     var content = A.$("content");
     content.innerHTML =
       '<div id="pguHojeContent"></div>' +
-      '<div class="footnote">Atualizações de campo (status, %, observações, encarregado, turno) ficam salvas no servidor e são compartilhadas entre todo mundo — atualiza sozinho a cada ~45s, ou aperte 🔄 a qualquer momento.</div>';
+      '<div class="footnote">Atualizações de campo (status, %, observações, encarregado, turno) ficam salvas no servidor e são compartilhadas entre todo mundo — aperte 🔄 pra ver o que outras pessoas atualizaram.</div>';
     wireHojeTab();
   }
 
