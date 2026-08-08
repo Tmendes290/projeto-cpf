@@ -1710,7 +1710,28 @@
     await Promise.all([loadOverridesFromSupabase(), loadBaselineFromSupabase()]);
     renderAll();
   });
-  // Sem atualização automática em segundo plano -- a cada ~45s ela interrompia quem estava no
-  // meio de um preenchimento (perdia foco/estado do campo, resetava seleção). Agora só puxa o
-  // que outras pessoas fizeram em campo quando o encarregado aperta 🔄 na mão.
+  // Sincronização ao vivo (Supabase Realtime, mesmo mecanismo do dashboard principal -- ver
+  // index.html/startRealtime) em vez do antigo polling de 45s: só re-renderiza quando algo
+  // realmente muda no banco (não a cada N segundos sem motivo), e nunca no meio de uma edição --
+  // se o painel de atualização estiver aberto, adia e tenta de novo em vez de fechar/resetar o
+  // que a pessoa está preenchendo.
+  var realtimeRenderTimer = null;
+  function agendarRenderRealtime() {
+    clearTimeout(realtimeRenderTimer);
+    if (A.$("pguDrawerOverlay")) { realtimeRenderTimer = setTimeout(agendarRenderRealtime, 3000); return; }
+    realtimeRenderTimer = setTimeout(renderAll, 400);
+  }
+  supa.channel("pgu-overrides-live")
+    .on("postgres_changes", { event: "*", schema: "public", table: "pgu_overrides" }, function (payload) {
+      OVERRIDES_CACHE = OVERRIDES_CACHE || {};
+      if (payload.eventType === "DELETE") { if (payload.old) delete OVERRIDES_CACHE[payload.old.uid]; }
+      else if (payload.new) { OVERRIDES_CACHE[payload.new.uid] = payload.new.dados; }
+      agendarRenderRealtime();
+    })
+    .subscribe(function (status) { console.log("[PGU realtime] pgu_overrides:", status); });
+  supa.channel("pgu-baseline-live")
+    .on("postgres_changes", { event: "UPDATE", schema: "public", table: "pgu_baseline", filter: "chave=eq.main" }, function () {
+      loadBaselineFromSupabase().then(agendarRenderRealtime);
+    })
+    .subscribe(function (status) { console.log("[PGU realtime] pgu_baseline:", status); });
 })();

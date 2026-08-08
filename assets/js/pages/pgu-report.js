@@ -323,7 +323,21 @@
 
   render();
   A.wireAtualizarButton(["pgu"], render);
-  setInterval(function () { render(); }, 60000);
+
+  // Sincronização ao vivo (Supabase Realtime) em vez de ficar checando de tempos em tempos --
+  // debounced pra não re-renderizar a cada evento individual quando várias atividades mudam em
+  // sequência rápida (ex.: alguém encerrando um turno inteiro de uma vez).
+  var realtimeRenderTimer = null;
+  function agendarRenderRealtime() {
+    clearTimeout(realtimeRenderTimer);
+    realtimeRenderTimer = setTimeout(render, 800);
+  }
+  supa.channel("pgu-report-overrides-live")
+    .on("postgres_changes", { event: "*", schema: "public", table: "pgu_overrides" }, agendarRenderRealtime)
+    .subscribe(function (status) { console.log("[PGU report realtime] pgu_overrides:", status); });
+  supa.channel("pgu-report-baseline-live")
+    .on("postgres_changes", { event: "UPDATE", schema: "public", table: "pgu_baseline", filter: "chave=eq.main" }, agendarRenderRealtime)
+    .subscribe(function (status) { console.log("[PGU report realtime] pgu_baseline:", status); });
 
   // Delegado no .main (fixo, sobrevive ao content.innerHTML ser trocado a cada render/refresh) --
   // abre a caixa de impressão do navegador pra "Salvar como PDF" e divulgar o report (mesma ideia
