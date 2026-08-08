@@ -1580,11 +1580,7 @@
     await Promise.all([loadOverridesFromSupabase(), loadBaselineFromSupabase()]);
     renderAll();
   });
-  // Atualizacao em segundo plano pra refletir o que outras pessoas foram preenchendo em campo,
-  // sem precisar apertar "Atualizar" na mao. So pula quando tem um painel de edicao aberto, pra
-  // nao atrapalhar quem esta no meio de um preenchimento.
-  setInterval(function () {
-    if (A.$("pguDrawerOverlay")) return;
-    loadOverridesFromSupabase().then(renderAll);
-  }, 45000);
+  // Sem atualização automática em segundo plano -- a cada ~45s ela interrompia quem estava no
+  // meio de um preenchimento (perdia foco/estado do campo, resetava seleção). Agora só puxa o
+  // que outras pessoas fizeram em campo quando o encarregado aperta 🔄 na mão.
 })();
