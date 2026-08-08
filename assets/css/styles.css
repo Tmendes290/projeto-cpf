@@ -1799,7 +1799,7 @@ details.pgu-group-disciplina > summary .pgu-group__count { background: rgba(255,
    navegadores tiram fundo colorido por padrão a menos que isso seja forçado. */
 @media print {
   * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-  @page { margin: 12mm; }
+  @page { margin: 10mm; }
 
   .pgu-minibar, .pgu-modeswitch, .countdown-banner, #statusPills, .footnote,
   .pgu-turno-header__actions, .pgu-card__actions, .pgu-card__pct-thumb,
@@ -1808,6 +1808,20 @@ details.pgu-group-disciplina > summary .pgu-group__count { background: rgba(255,
   }
 
   .pgu-standalone { max-width: none; }
-  .pgu-card, .kpi-card, .panel { box-shadow: none; break-inside: avoid; }
+
+  /* Painel inteiro NÃO é mais "atômico" -- forçar isso deixava buracos enormes de página em
+     branco toda vez que um painel não cabia inteiro no resto da folha (ia inteiro pra próxima).
+     Só o que realmente fica ruim cortado ao meio (card, linha de tabela, o próprio gráfico)
+     continua marcado como indivisível; o resto pode fluir e emendar entre páginas. */
+  .kpi-grid { gap: 8px; margin-bottom: 10px; }
+  .panel { box-shadow: none; padding: 10px 14px; margin-bottom: 8px; break-inside: auto; }
+  .panel__title { break-after: avoid; margin-bottom: 2px; }
+  .panel__subtitle { margin-bottom: 8px; }
+  .pgu-turno-header { margin-bottom: 10px; padding: 14px 16px; }
+  .pgu-card, .kpi-card { box-shadow: none; break-inside: avoid; }
   details.pgu-group-tr, details.pgu-group-componente, details.pgu-group-disciplina { break-inside: avoid; }
+
+  .data-table thead { display: table-header-group; }
+  .data-table tr { break-inside: avoid; }
+  .panel svg, .chart-legend { break-inside: avoid; }
 }
