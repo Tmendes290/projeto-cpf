@@ -1678,7 +1678,9 @@ details.pgu-group-disciplina > summary .pgu-group__count { background: rgba(255,
 
 /* ---------- Faixa "linha do tempo da PGU" com a corrida ---------- */
 .pgu-race { margin: 4px 0 4px; }
-.pgu-race__track { position: relative; height: 28px; margin: 0 34px 0 4px; }
+/* pointer-events:none aqui -- o desenho da corrida e so decorativo (icone/bandeira podiam ficar
+   por cima dos chips de dia vizinhos e roubar o clique deles, sem ter nenhuma acao propria). */
+.pgu-race__track { position: relative; height: 28px; margin: 0 34px 0 4px; pointer-events: none; }
 .pgu-race__track-bg { position: absolute; top: 50%; left: 0; right: 0; height: 10px; margin-top: -5px; background: rgba(255,255,255,.18); border-radius: 6px; }
 .pgu-race__fill { position: absolute; top: 50%; left: 0; height: 10px; margin-top: -5px; border-radius: 6px; background: linear-gradient(90deg, #6be2c4, #fff); transition: width .3s; }
 .pgu-race__meta { position: absolute; top: -4px; width: 2px; height: 18px; background: rgba(255,255,255,.7); }

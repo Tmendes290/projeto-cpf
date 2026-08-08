@@ -1113,7 +1113,10 @@
       bodyHtml = renderModoEncarregadoBody(effsAll, diaStr, hojeStr);
     }
 
-    container.innerHTML = modeSwitchHtml() + raceBannerHtml(effsAll, pguInicio, pguFim, hojeStr, diaStr) + bodyHtml;
+    // A faixa "A PGU começa em"/corrida só aparece no Modo Encarregado -- no Modo Gestão os
+    // próprios chips de dia/turno (dentro do corpo) já cobrem a navegação por data.
+    var bannerHtml = pguModo === "gestao" ? "" : raceBannerHtml(effsAll, pguInicio, pguFim, hojeStr, diaStr);
+    container.innerHTML = modeSwitchHtml() + bannerHtml + bodyHtml;
 
     // Guarda o estado aberto/fechado de cada grupo pra sobreviver ao proximo re-render (ver groupOpenState).
     container.querySelectorAll("details[data-gkey]").forEach(function (d) {
