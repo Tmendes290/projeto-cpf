@@ -1080,8 +1080,9 @@
     var atrasadas = doTurno.filter(function (e) { return e.status === "Atrasada"; }).length;
     var pctMedio = doTurno.length ? Math.round(doTurno.reduce(function (s, e) { return s + (e.percent || 0); }, 0) / doTurno.length) : 0;
     var tituloDia = vendoTodaPgu ? "todos os dias" : (diaStr === hojeStr ? "hoje" : A.fmtDate(diaStr));
-    // Só faz sentido "encerrar" o turno de hoje de verdade (fechar um dia passado/futuro não tem efeito prático).
-    var podeEncerrar = pendentes.length > 0 && diaStr === hojeStr;
+    // Encerra o turno do dia que está sendo visualizado nos chips (não precisa bater com a data
+    // real do relógio) -- só não faz sentido em "Toda a PGU", onde não há um turno único pra fechar.
+    var podeEncerrar = pendentes.length > 0 && diaStr !== TODA_PGU;
 
     return '<div class="pgu-turno-header">' +
         '<div><div class="pgu-turno-header__title">🕐 Turno ' + A.esc(tAtual) + '</div>' +
@@ -1221,9 +1222,11 @@
     // quem devia terminar e não terminou (vira "herdada", com motivo obrigatório). ----
     A.onDelegated(container, "#pguEncerrarTurno", function () {
       var tAtual = meuTurno;
-      var hojeStr = toISODate(new Date());
+      // Fecha o turno do dia que está sendo visualizado nos chips (hojeSelectedDate), não
+      // necessariamente o dia real do relógio -- ver [[podeEncerrar]] em renderModoEncarregadoBody.
+      var diaAlvo = hojeSelectedDate || toISODate(new Date());
       var doTurnoHoje = lastEffs.filter(function (e) {
-        return e.turno === tAtual && e.inicio && e.termino && e.inicio <= hojeStr && e.termino >= hojeStr;
+        return e.turno === tAtual && e.inicio && e.termino && e.inicio <= diaAlvo && e.termino >= diaAlvo;
       });
       var pendentes = doTurnoHoje.filter(function (e) { return e.status !== "Concluída"; });
       if (!pendentes.length) { A.toast("Tudo concluído nesse turno. 🎉"); return; }
