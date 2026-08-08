@@ -5,7 +5,12 @@
 (function () {
   "use strict";
   var A = window.App;
-  var SUPA_URL = "https://ehbiyqqpzqrluvuqrljp.supabase.co";
+  // Passa pelo proxy do servidor do dashboard-dotações (/db) em vez de falar direto com
+  // *.supabase.co -- a rede da Vale derruba conexão SSL direta com esse domínio (mesmo problema
+  // já resolvido no app principal, ver index.html/SUPA_URL de lá). Sem isso, gravações feitas em
+  // campo (turno/status/%) pareciam funcionar na hora (o app atualiza a UI local antes de
+  // confirmar o salvamento) mas nunca chegavam no servidor -- ninguém mais via a atualização.
+  var SUPA_URL = "https://dashboardsalobo.com.br/db";
   var SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVoYml5cXFwenFybHV2dXFybGpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMjM3MTcsImV4cCI6MjA5NDg5OTcxN30.lW_Jdc7SC7FKh9OJPBCYdfN-QMXFTYGjterU3eWOFTc";
   var supa = window.supabase.createClient(SUPA_URL, SUPA_KEY);
   // Alerta de fim de turno no WhatsApp (grupo da gerência) -- chama um endpoint no servidor do

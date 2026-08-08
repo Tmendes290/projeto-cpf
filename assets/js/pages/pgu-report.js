@@ -5,7 +5,9 @@
 (function () {
   "use strict";
   var A = window.App;
-  var SUPA_URL = "https://ehbiyqqpzqrluvuqrljp.supabase.co";
+  // Mesmo proxy usado no pgu.js -- ver comentário lá pra detalhes de por que não fala direto com
+  // *.supabase.co (rede da Vale derruba a conexão SSL direta).
+  var SUPA_URL = "https://dashboardsalobo.com.br/db";
   var SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVoYml5cXFwenFybHV2dXFybGpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMjM3MTcsImV4cCI6MjA5NDg5OTcxN30.lW_Jdc7SC7FKh9OJPBCYdfN-QMXFTYGjterU3eWOFTc";
   var supa = window.supabase.createClient(SUPA_URL, SUPA_KEY);
 
