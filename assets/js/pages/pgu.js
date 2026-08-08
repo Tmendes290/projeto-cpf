@@ -840,6 +840,11 @@
   function groupedByTrOnlyHtml(effs, showEncarregado) {
     if (!effs.length) return '<div class="table-caption">Nenhuma atividade encontrada.</div>';
     var porTR = groupBy(effs, function (e) { return e.area; });
+    // Ordena os GRUPOS pelo nome do TR (TCLD 0101SA-01, -02, -03...) -- sem isso, o grupo que
+    // aparecia primeiro era o que por acaso tivesse a atividade mais cedo naquele turno/dia (ex.:
+    // TR-04 antes do TR-01), o que não bate com a ordem do cronograma. As atividades DENTRO de
+    // cada grupo continuam na ordem cronológica (já vêm ordenadas de quem chamou essa função).
+    porTR.sort(function (a, b) { return a.label < b.label ? -1 : (a.label > b.label ? 1 : 0); });
     var html = porTR.map(function (trGroup) {
       var body = '<div class="pgu-group__body">' + trGroup.itens.map(function (e) { return activityCardHtml(e, !!showEncarregado); }).join("") + "</div>";
       if (trGroup.label === SEM_CLASSIFICACAO) return body;
