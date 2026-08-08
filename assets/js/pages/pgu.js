@@ -33,8 +33,19 @@
   // localStorage). Em vez de reescrever essa logica toda pra async, mantemos a LEITURA sobre um
   // cache em memoria (populado uma vez no boot e recarregado periodicamente) e so a GRAVACAO --
   // que nao precisa travar a tela -- vira uma chamada assincrona pro Supabase em segundo plano.
+  //
+  // IMPORTANTE: devolve uma CÓPIA rasa, nunca o OVERRIDES_CACHE em si. Todo chamador (ver
+  // saveOverrideField/saveOverrideFields/o drawer) pega esse objeto, muta `overrides[uid] = novo`
+  // e passa pra saveOverrides(), que decide o que gravar comparando contra OVERRIDES_CACHE. Se
+  // devolvêssemos a mesma referência, essa mutação já alterava o OVERRIDES_CACHE ANTES da
+  // comparação rodar -- a "diferença" ficava sempre zero e o upsert pro Supabase nunca disparava
+  // (bug real encontrado em 2026-08-08: nada nunca tinha sido salvo de verdade no banco, embora a
+  // tela sempre mostrasse a atualização "aplicada" -- era só o cache local mudando).
   function loadOverrides() {
-    return OVERRIDES_CACHE || {};
+    var src = OVERRIDES_CACHE || {};
+    var copia = {};
+    for (var k in src) { copia[k] = src[k]; }
+    return copia;
   }
   function saveOverrides(obj) {
     var changedUids = Object.keys(obj).filter(function (uid) {
