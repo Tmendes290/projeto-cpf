@@ -69,15 +69,19 @@
   // resumo de produtividade (horas planejadas x concluídas nesse turno), uma tabela por
   // encarregado x TR/ativo (quantas atividades cada um executou do que era esperado) e, se sobrou
   // pendência, a lista de atrasadas com motivo, já agrupada por encarregado responsável.
-  // "atrasadas" é [{nome, area, motivo, encarregado}]; "porEncarregado" é
+  // "atrasadas" é [{nome, area, motivo, encarregado, proximoEncarregado}]; "porEncarregado" é
   // [{encarregado, area, planejado, concluido}]; "produtividade" é
-  // {qtdPlanejada, qtdConcluida, horasPlanejadas, horasConcluidas, pct}. Não bloqueia o "Encerrar
-  // turno": dispara em segundo plano e só avisa por toast se der certo/errado.
-  function enviarAlertaWhatsApp(turno, diaISO, atrasadas, produtividade, porEncarregado) {
+  // {qtdPlanejada, qtdConcluida, horasPlanejadas, horasConcluidas, pct}; "proximoTurno" é o rótulo
+  // do turno seguinte (ex.: "17h–00h"), pra quem ler saber pra onde a pendência foi. Não bloqueia
+  // o "Encerrar turno": dispara em segundo plano e só avisa por toast se der certo/errado.
+  function enviarAlertaWhatsApp(turno, diaISO, atrasadas, produtividade, porEncarregado, proximoTurno) {
     fetch(PGU_ALERTA_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json; charset=utf-8" },
-      body: JSON.stringify({ token: PGU_ALERTA_TOKEN, turno: turno, dia: A.fmtDate(diaISO), atrasadas: atrasadas, produtividade: produtividade, porEncarregado: porEncarregado })
+      body: JSON.stringify({
+        token: PGU_ALERTA_TOKEN, turno: turno, dia: A.fmtDate(diaISO), atrasadas: atrasadas,
+        produtividade: produtividade, porEncarregado: porEncarregado, proximoTurno: proximoTurno
+      })
     }).then(function (r) {
       if (!r.ok) return r.json().catch(function () { return {}; }).then(function (b) { throw new Error(b.error || ("HTTP " + r.status)); });
       A.toast("Report do turno enviado no grupo do WhatsApp.");
@@ -1303,10 +1307,11 @@
         if (e.status === "Concluída") porEncMap[key].concluido++;
       });
       var porEncarregado = porEncOrder.map(function (k) { return porEncMap[k]; });
+      var proximoTurno = nextTurno(tAtual);
 
       if (!pendentes.length) {
         A.toast("Tudo concluído nesse turno. 🎉");
-        enviarAlertaWhatsApp(tAtual, diaAlvo, [], produtividade, porEncarregado);
+        enviarAlertaWhatsApp(tAtual, diaAlvo, [], produtividade, porEncarregado, proximoTurno);
         return;
       }
 
@@ -1319,6 +1324,22 @@
       if (!confirm(msg)) return;
 
       estouro.forEach(function (e) { saveOverrideField(e.uid, "turno", nextTurno(tAtual)); });
+
+      // Quem normalmente pega esse TR/ativo no próximo turno -- olha quem já está escalado
+      // (campo Encarregado do cronograma) em OUTRAS atividades da mesma área naquele horário. Se
+      // ninguém aparecer, a mensagem só diz "vai pro turno X" sem citar nome.
+      var doDiaTodos = lastEffs.filter(function (e) {
+        return e.inicio && e.termino && e.inicio <= diaAlvo && e.termino >= diaAlvo;
+      });
+      function encarregadoDoProximoTurno(area) {
+        var counts = {};
+        doDiaTodos.forEach(function (e) {
+          if (e.turno === proximoTurno && e.area === area && e.encarregado) counts[e.encarregado] = (counts[e.encarregado] || 0) + 1;
+        });
+        var best = null, bestCount = 0;
+        Object.keys(counts).forEach(function (k) { if (counts[k] > bestCount) { bestCount = counts[k]; best = k; } });
+        return best;
+      }
 
       // Só entra na lista do alerta de WhatsApp quem de fato ficou com motivo salvo -- se a
       // pessoa cancelar o prompt de motivo (ver "Tentar de novo?"), aquela atividade é pulada
@@ -1337,12 +1358,15 @@
           }
         }
         saveOverrideFields(e.uid, { status: "Atrasada", observacoes: motivo.trim(), herancaDeTurno: tAtual, turno: nextTurno(tAtual) });
-        alertaAtrasadas.push({ nome: e.nome, area: e.area, motivo: motivo.trim(), encarregado: e.encarregado || "" });
+        alertaAtrasadas.push({
+          nome: e.nome, area: e.area, motivo: motivo.trim(), encarregado: e.encarregado || "",
+          proximoEncarregado: encarregadoDoProximoTurno(e.area) || ""
+        });
       });
 
       A.toast("Turno encerrado.");
       renderAll();
-      enviarAlertaWhatsApp(tAtual, diaAlvo, alertaAtrasadas, produtividade, porEncarregado);
+      enviarAlertaWhatsApp(tAtual, diaAlvo, alertaAtrasadas, produtividade, porEncarregado, proximoTurno);
     });
 
     // ---- PDF: abre a caixa de impressão do navegador (a pessoa escolhe "Salvar como PDF") sobre
