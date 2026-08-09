@@ -1860,5 +1860,15 @@ details.pgu-group-disciplina > summary .pgu-group__count { background: rgba(255,
 
   .data-table thead { display: table-header-group; }
   .data-table tr { break-inside: avoid; }
+  .data-table { font-size: 10.5px; }
   .panel svg, .chart-legend { break-inside: avoid; }
+
+  /* O gráfico da Curva S (comboSCurveChart) desenha um SVG com largura fixa em pixels (cresce
+     conforme o número de pontos) dentro de uma div com overflow-x:auto pra rolar na tela --
+     rolagem não existe em impressão/PDF, então sem isso o navegador ou cortava o gráfico ou
+     espremia a página inteira pra caber (ficava desproporcional, principalmente no celular, onde
+     a largura útil da folha é bem menor que no computador). Forçar width:100% + height:auto no
+     SVG ignora o atributo width="" fixo e escala pelo viewBox, mantendo a proporção certinha. */
+  .panel > div[style*="overflow-x"] { overflow: visible !important; width: 100% !important; }
+  .panel svg { width: 100% !important; max-width: 100% !important; height: auto !important; }
 }
