@@ -552,6 +552,32 @@
     if (el && el.parentNode) el.parentNode.removeChild(el);
   }
 
+  // Tela de confirmação de verdade (não o confirm() nativo do navegador -- muito fácil de
+  // "estourar" sem ler, com Enter ou toque rápido no celular) pra ações que mexem em várias
+  // atividades de uma vez, como "Encerrar turno". Só o clique explícito no botão "Sim" chama
+  // onConfirm; clicar fora, no "Não" ou apertar Esc só fecha, sem fazer nada.
+  function pguConfirmModal(tituloHtml, corpoHtml, onConfirm) {
+    var overlay = document.createElement("div");
+    overlay.className = "pgu-confirm-overlay";
+    overlay.id = "pguConfirmOverlay";
+    overlay.innerHTML =
+      '<div class="pgu-confirm-modal">' +
+        "<h3>" + tituloHtml + "</h3>" +
+        corpoHtml +
+        '<div class="pgu-confirm-modal__actions">' +
+          '<button type="button" class="pgu-confirm-btn--nao" id="pguConfirmNao">Não, cancelar</button>' +
+          '<button type="button" class="pgu-confirm-btn--sim" id="pguConfirmSim">Sim, confirmar</button>' +
+        "</div>" +
+      "</div>";
+    document.body.appendChild(overlay);
+    function fechar() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); document.removeEventListener("keydown", onEsc); }
+    function onEsc(e) { if (e.key === "Escape") fechar(); }
+    document.addEventListener("keydown", onEsc);
+    overlay.addEventListener("click", function (e) { if (e.target === overlay) fechar(); });
+    A.$("pguConfirmNao").addEventListener("click", fechar);
+    A.$("pguConfirmSim").addEventListener("click", function () { fechar(); onConfirm(); });
+  }
+
   function chipsHtml(containerId, dataAttr, options, current, extraCls) {
     return '<div class="chip-grid" id="' + containerId + '">' + options.map(function (opt) {
       return '<button type="button" class="chip-option' + (extraCls || "") + (current === opt ? " active" : "") +
@@ -1367,14 +1393,27 @@
       var atrasoComPred = atraso.filter(function (e) { return !!predecessoraPendente(activitiesByUid[e.uid]); });
       var atrasoSemPred = atraso.length - atrasoComPred.length;
 
-      var msg = "Encerrar o turno " + tAtual + "?\n\n" +
-        pendentes.length + " atividade(s) não concluída(s) vão mudar de turno:\n";
-      if (estouro.length) msg += "• " + estouro.length + " já era esperado continuarem no próximo turno (normal, sem motivo).\n";
-      if (atrasoComPred.length) msg += "• " + atrasoComPred.length + " ficam \"Atrasada\" com motivo AUTOMÁTICO (predecessora também pendente).\n";
-      if (atrasoSemPred) msg += "• " + atrasoSemPred + " vão pedir motivo digitado por você.\n";
-      msg += "\nDá pra desfazer depois, mas confira antes de confirmar.";
-      if (!confirm(msg)) return;
+      var corpoHtml =
+        "<p>" + pendentes.length + " atividade(s) não concluída(s) vão mudar de turno:</p><ul>" +
+        (estouro.length ? "<li>" + estouro.length + " já era esperado continuarem no próximo turno (normal, sem motivo).</li>" : "") +
+        (atrasoComPred.length ? "<li>" + atrasoComPred.length + " ficam \"Atrasada\" com motivo <strong>automático</strong> (predecessora também pendente).</li>" : "") +
+        (atrasoSemPred ? "<li>" + atrasoSemPred + " vão pedir motivo digitado por você.</li>" : "") +
+        "</ul><p class=\"pgu-confirm-modal__note\">Dá pra desfazer depois pelo botão ↩️ no cabeçalho, mas confira antes de confirmar.</p>";
 
+      // Só o clique explícito em "Sim, confirmar" chama executarEncerrarTurno() -- diferente do
+      // confirm() nativo do navegador (que some fácil demais com Enter/toque rápido), essa tela
+      // fica parada até uma ação deliberada.
+      pguConfirmModal("Encerrar o turno " + A.esc(tAtual) + "?", corpoHtml, function () {
+        executarEncerrarTurno(tAtual, diaAlvo, estouro, atraso, produtividade, porEncarregado, proximoTurno);
+      });
+    });
+
+    // Faz de fato a mutação (chamado só depois do "Sim" na tela de confirmação acima). Separado
+    // do handler do clique pra ficar claro que essa parte só roda com confirmação explícita.
+    function executarEncerrarTurno(tAtual, diaAlvo, estouro, atraso, produtividade, porEncarregado, proximoTurno) {
+      var doDiaTodos = lastEffs.filter(function (e) {
+        return e.inicio && e.termino && e.inicio <= diaAlvo && e.termino >= diaAlvo;
+      });
       // Guarda o "antes" de cada atividade que vai ser tocada (override atual, ou null se não
       // tinha nenhum) -- é o que permite desfazer com um clique se for sem querer.
       var overridesAntes = loadOverrides();
@@ -1387,9 +1426,6 @@
       // Quem normalmente pega esse TR/ativo no próximo turno -- olha quem já está escalado
       // (campo Encarregado do cronograma) em OUTRAS atividades da mesma área naquele horário. Se
       // ninguém aparecer, a mensagem só diz "vai pro turno X" sem citar nome.
-      var doDiaTodos = lastEffs.filter(function (e) {
-        return e.inicio && e.termino && e.inicio <= diaAlvo && e.termino >= diaAlvo;
-      });
       function encarregadoDoProximoTurno(area) {
         var counts = {};
         doDiaTodos.forEach(function (e) {
@@ -1427,7 +1463,7 @@
       A.toast("Turno encerrado. Dá pra desfazer no botão ↩️ do cabeçalho, se precisar.");
       renderAll();
       enviarAlertaWhatsApp(tAtual, diaAlvo, alertaAtrasadas, produtividade, porEncarregado, proximoTurno);
-    });
+    }
 
     // ---- Desfaz o último "Encerrar turno" -- devolve cada atividade tocada pro override que ela
     // tinha ANTES (ou apaga o override, se ela não tinha nenhum), usando o snapshot guardado. ----

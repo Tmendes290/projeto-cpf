@@ -1246,6 +1246,43 @@ details.pgu-group-tr > summary .pgu-group__count { background: var(--light-gray)
 details.pgu-group-componente > summary .pgu-group__count { background: rgba(255, 255, 255, 0.55); color: var(--dark-green); }
 details.pgu-group-disciplina > summary .pgu-group__count { background: rgba(255, 255, 255, 0.3); color: var(--white); }
 
+/* ---------- Modal de confirmação (ex.: Encerrar turno) -- tela de verdade em vez do confirm()
+   nativo do navegador, que é fácil de aceitar sem querer (Enter/toque rápido). ---------- */
+
+.pgu-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 36, 32, 0.5);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.pgu-confirm-modal {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.28);
+  max-width: 440px;
+  width: 100%;
+  padding: 22px 24px;
+  text-align: left;
+}
+
+.pgu-confirm-modal h3 { margin: 0 0 12px; font-size: 17px; color: var(--dark-gray); }
+.pgu-confirm-modal p { font-size: 13.5px; color: var(--dark-gray); line-height: 1.55; margin: 0 0 8px; }
+.pgu-confirm-modal ul { margin: 4px 0 12px; padding-left: 20px; font-size: 13.5px; color: var(--dark-gray); line-height: 1.6; }
+.pgu-confirm-modal__note { font-size: 12px; color: var(--vale-gray); margin-top: 10px; }
+
+.pgu-confirm-modal__actions { display: flex; gap: 10px; margin-top: 18px; }
+.pgu-confirm-modal__actions button {
+  flex: 1; padding: 12px; border-radius: 8px; font-weight: 700; font-size: 14px;
+  cursor: pointer; font-family: inherit; border: none;
+}
+.pgu-confirm-modal__actions .pgu-confirm-btn--sim { background: var(--farol-vermelho); color: var(--white); }
+.pgu-confirm-modal__actions .pgu-confirm-btn--nao { background: var(--light-gray); color: var(--dark-gray); }
+
 /* ---------- Drawer (painel lateral de atualizacao rapida) ---------- */
 
 .drawer-overlay {
