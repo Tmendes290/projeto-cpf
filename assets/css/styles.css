@@ -1858,7 +1858,11 @@ details.pgu-group-disciplina > summary .pgu-group__count { background: rgba(255,
   .pgu-card, .kpi-card { box-shadow: none; break-inside: avoid; }
   details.pgu-group-tr, details.pgu-group-componente, details.pgu-group-disciplina { break-inside: avoid; }
 
-  .data-table thead { display: table-header-group; }
+  /* "thead { display: table-header-group }" (repetir cabeçalho quando a tabela quebra de página)
+     foi removido de propósito: é um gatilho conhecido de bug no motor de impressão do Safari/iOS
+     -- quando combinado com break-inside em elementos pai, ele às vezes derruba/corta conteúdo
+     inteiro da página seguinte em vez de só repetir o cabeçalho. Prefere perder o cabeçalho
+     repetido a perder o conteúdo da tabela. */
   .data-table tr { break-inside: avoid; }
   .data-table { font-size: 10.5px; }
   .panel svg, .chart-legend { break-inside: avoid; }
