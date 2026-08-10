@@ -703,6 +703,7 @@
   var hojeSelectedDate = null; // yyyy-MM-dd escolhido na linha do tempo da PGU (persiste entre re-renders)
   var pguModo = "encarregado"; // "encarregado" | "gestao" -- persiste entre re-renders
   var meuTurno = null; // turno escolhido no Modo Encarregado (07h–17h / 17h–00h / 00h–07h)
+  var pguEncEmpresa = null; // filtro de empresa (executante) dentro do turno escolhido no Modo Encarregado
   var lastEffs = [];
   // "fiscalObra|disciplina" -> turno predominante desse fiscal NAQUELA disciplina (maioria das
   // atividades dele ali), recalculado a cada renderAll(). Separado por disciplina porque um mesmo
@@ -1185,16 +1186,37 @@
         '<div class="panel"><div class="table-caption">Nenhuma atividade com esses filtros.</div></div>');
   }
 
+  // Chips "🏢 Todas as empresas" + uma por empresa (executante) com atividade nesse turno --
+  // filtro extra dentro do Modo Encarregado, depois que o turno já foi escolhido.
+  function encarregadoEmpresaChipsHtml(doTurnoAll) {
+    if (!pguEncEmpresa) pguEncEmpresa = TODA_PGU;
+    var empresas = [];
+    doTurnoAll.forEach(function (e) {
+      if (e.executante && empresas.indexOf(e.executante) < 0) empresas.push(e.executante);
+    });
+    if (!empresas.length) return "";
+    empresas.sort();
+    var chips = '<button type="button" class="pgu-gestao-chip' + (pguEncEmpresa === TODA_PGU ? " pgu-gestao-chip--sel" : "") + '" data-pick-empresa-enc="' + TODA_PGU + '">🏢 Todas as empresas</button>';
+    chips += empresas.map(function (emp) {
+      var isSel = emp === pguEncEmpresa;
+      return '<button type="button" class="pgu-gestao-chip' + (isSel ? " pgu-gestao-chip--sel" : "") + '" data-pick-empresa-enc="' + A.esc(emp) + '">' + A.esc(emp) + "</button>";
+    }).join("");
+    return '<div class="pgu-gestao-daybar">' + chips + "</div>";
+  }
+
   // Corpo do Modo Encarregado: card por atividade do turno escolhido, agrupado só por TR/ativo.
   function renderModoEncarregadoBody(effsAll, diaStr, hojeStr) {
     var tAtual = meuTurno;
     var vendoTodaPgu = diaStr === TODA_PGU;
     var doDia = vendoTodaPgu ? effsAll : effsAll.filter(function (e) { return e.inicio && e.termino && e.inicio <= diaStr && e.termino >= diaStr; });
-    var doTurno = doDia.filter(function (e) { return e.turno === tAtual; })
+    var doTurnoTodasEmpresas = doDia.filter(function (e) { return e.turno === tAtual; })
       .sort(function (a, b) {
         var da = a.inicioDataHora || "", db = b.inicioDataHora || "";
         return da < db ? -1 : (da > db ? 1 : 0);
       });
+    if (!pguEncEmpresa) pguEncEmpresa = TODA_PGU;
+    var doTurno = pguEncEmpresa === TODA_PGU ? doTurnoTodasEmpresas :
+      doTurnoTodasEmpresas.filter(function (e) { return e.executante === pguEncEmpresa; });
 
     var pendentes = doTurno.filter(function (e) { return e.status !== "Concluída"; });
     var herdadas = doTurno.filter(function (e) { return e.herancaDeTurno; });
@@ -1216,6 +1238,7 @@
           '<button type="button" class="pgu-btn-ghost" id="pguTrocarTurno">Trocar turno</button>' +
         "</div>" +
       "</div>" +
+      encarregadoEmpresaChipsHtml(doTurnoTodasEmpresas) +
       '<div class="kpi-grid">' +
         kpiCard("📋", "Atividades no turno", A.fmtNum(doTurno.length)) +
         kpiCard("⏱️", "Atrasadas", A.fmtNum(atrasadas), atrasadas ? "bad" : "") +
@@ -1304,10 +1327,16 @@
     });
     A.onDelegated(container, "[data-pick-turno]", function (el) {
       meuTurno = el.getAttribute("data-pick-turno");
+      pguEncEmpresa = null;
       renderHoje(lastEffs);
     });
     A.onDelegated(container, "#pguTrocarTurno", function () {
       meuTurno = null;
+      pguEncEmpresa = null;
+      renderHoje(lastEffs);
+    });
+    A.onDelegated(container, "[data-pick-empresa-enc]", function (el) {
+      pguEncEmpresa = el.getAttribute("data-pick-empresa-enc");
       renderHoje(lastEffs);
     });
     A.onDelegated(container, "[data-pick-dia-gestao]", function (el) {
