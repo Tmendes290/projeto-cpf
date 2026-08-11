@@ -1740,6 +1740,14 @@ details.pgu-group-disciplina > summary .pgu-group__count { background: rgba(255,
 }
 .pgu-btn-ghost--danger { background: rgba(217,48,37,.18); border-color: rgba(217,48,37,.45); }
 
+/* Barra "Expandir tudo / Recolher tudo" acima da árvore de grupos (TR / Componente). */
+.pgu-group-toolbar { display: flex; justify-content: flex-end; gap: 8px; margin: 0 0 10px; }
+.pgu-group-toolbar button {
+  background: var(--light-gray); border: 1px solid var(--light-gray); color: var(--dark-gray);
+  border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit;
+}
+.pgu-group-toolbar button:hover { border-color: var(--vale-green); color: var(--dark-green); }
+
 /* Barra de chips (dia / turno) do Modo Gestão -- painel claro, independente do banner de cima. */
 .pgu-gestao-daybar {
   background: var(--white); border-radius: 12px; box-shadow: var(--shadow); border: 1px solid var(--light-gray);

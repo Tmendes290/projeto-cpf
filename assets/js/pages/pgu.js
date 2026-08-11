@@ -930,7 +930,7 @@
         if (compGroup.label === SEM_CLASSIFICACAO) return '<div class="pgu-group__body">' + discHtml + "</div>";
         var keyC = "comp:" + trGroup.label + "|" + compGroup.label;
         return '<details class="pgu-group-componente" data-gkey="' + A.esc(keyC) + '"' + (groupOpenState[keyC] ? " open" : "") + '><summary>' +
-          "⚙️ " + A.esc(compGroup.label) +
+          A.esc(compGroup.label) +
           '<span class="pgu-group__count">' + compGroup.itens.length + "</span>" +
           "</summary>" +
           '<div class="pgu-group__body">' + discHtml + "</div>" +
@@ -939,13 +939,22 @@
       if (trGroup.label === SEM_CLASSIFICACAO || grupoRedundante(trGroup)) return '<div class="pgu-group__body">' + compHtml + "</div>";
       var keyT = "tr:" + trGroup.label;
       return '<details class="pgu-group-tr" data-gkey="' + A.esc(keyT) + '"' + (groupOpenState[keyT] ? " open" : "") + '><summary>' +
-        "🛠️ " + A.esc(trGroup.label) +
+        A.esc(trGroup.label) +
         '<span class="pgu-group__count">' + trGroup.itens.length + " atividades</span>" +
         "</summary>" +
         '<div class="pgu-group__body">' + compHtml + "</div>" +
         "</details>";
     }).join("");
-    return '<div id="pguGroupedTree">' + html + "</div>";
+    return groupToolbarHtml() + '<div id="pguGroupedTree">' + html + "</div>";
+  }
+
+  // Barra "Expandir tudo / Recolher tudo" acima da árvore de grupos -- os handlers de clique já
+  // existem em wireHojeTab (#pguGroupExpandAll / #pguGroupCollapseAll), faltava só o botão em si.
+  function groupToolbarHtml() {
+    return '<div class="pgu-group-toolbar">' +
+      '<button type="button" id="pguGroupExpandAll">Expandir tudo</button>' +
+      '<button type="button" id="pguGroupCollapseAll">Recolher tudo</button>' +
+      "</div>";
   }
 
   // Agrupamento de 2 níveis (TR/ativo -> Componente, nível 4 do cronograma: ACIONAMENTO, CHUTE,
@@ -971,20 +980,20 @@
         if (compGroup.label === SEM_CLASSIFICACAO) return body;
         var keyC = "comp-enc:" + trGroup.label + "|" + compGroup.label;
         return '<details class="pgu-group-componente" data-gkey="' + A.esc(keyC) + '"' + (groupOpenState[keyC] ? " open" : "") + '><summary>' +
-          "⚙️ " + A.esc(compGroup.label) +
+          A.esc(compGroup.label) +
           '<span class="pgu-group__count">' + compGroup.itens.length + " atividade" + (compGroup.itens.length === 1 ? "" : "s") + "</span>" +
           "</summary>" + body + "</details>";
       }).join("");
       if (trGroup.label === SEM_CLASSIFICACAO || grupoRedundante(trGroup)) return '<div class="pgu-group__body">' + compHtml + "</div>";
       var key = "tr-enc:" + trGroup.label;
       return '<details class="pgu-group-tr" data-gkey="' + A.esc(key) + '"' + (groupOpenState[key] ? " open" : "") + '><summary>' +
-        "🛠️ " + A.esc(trGroup.label) +
+        A.esc(trGroup.label) +
         '<span class="pgu-group__count">' + trGroup.itens.length + " atividade" + (trGroup.itens.length === 1 ? "" : "s") + "</span>" +
         "</summary>" +
         '<div class="pgu-group__body">' + compHtml + "</div>" +
         "</details>";
     }).join("");
-    return '<div id="pguGroupedTree">' + html + "</div>";
+    return groupToolbarHtml() + '<div id="pguGroupedTree">' + html + "</div>";
   }
 
   // ---------------------------------------------------------- Modo Encarregado / Modo Gestão
